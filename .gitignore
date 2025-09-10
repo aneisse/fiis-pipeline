@@ -1,0 +1,47 @@
+# --- Ambientes Virtuais ---
+# Ignora pastas de ambientes virtuais, que são específicas da máquina local.
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# --- Cache do Python ---
+# Ignora as pastas de cache de bytecode geradas pelo Python para otimização.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Artefatos de Build e Distribuição ---
+# Ignora as pastas geradas ao construir ou distribuir o pacote.
+dist/
+build/
+*.egg-info/
+*.egg
+
+# --- Ficheiros de IDE e Editor de Código ---
+# Ignora as configurações específicas do seu ambiente de desenvolvimento.
+.vscode/
+.idea/
+*.suo
+.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Ficheiros de Dados Gerados ---
+# Ignora os dados brutos ou processados gerados pelos seus scripts.
+dados_coletados/
+fiis-data-lake/
+*.csv
+*.json
+*.parquet
+
+# --- Ficheiros de Credenciais e Ambiente ---
+# NUNCA envie ficheiros com senhas, chaves de API ou segredos.
+.env
+*.env
+
+# --- Ficheiros de Log ---
+# Ignora os ficheiros de log gerados durante a execução do programa.
+*.log

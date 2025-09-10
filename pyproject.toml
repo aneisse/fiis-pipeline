@@ -1,0 +1,41 @@
+# Este arquivo define o seu projeto para as ferramentas de build do Python, como o pip.
+
+[build-system]
+# Define as ferramentas necessárias para construir o seu pacote.
+# setuptools é o padrão da indústria.
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# A seção mais importante: os metadados do seu pacote.
+name = "fiiscraper"
+version = "0.1.0"
+authors = [
+  { name="Seu Nome", email="seu@email.com" },
+]
+description = "Um pacote para coleta de dados de Fundos de Investimento Imobiliário (FIIs)."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# Lista todas as bibliotecas que o seu projeto precisa para funcionar.
+# O pip as instalará automaticamente.
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "yfinance",
+    "pandas",
+    "python-dateutil",
+    "lxml",
+]
+
+[project.optional-dependencies]
+# Dependências necessárias apenas para desenvolvimento e testes.
+test = [
+    "pytest",
+    "pytest-vcr",
+    "flake8"
+]
