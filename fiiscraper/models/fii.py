@@ -57,6 +57,10 @@ class FII:
         self.cap_rate = None
         self.vacancia_media = None
 
+        # Indicador para marcar se o FII foi encontrado no yfinance
+        self.tem_dados_yfinance = False
+
+
     def __repr__(self):
         # Este método define como o objeto será exibido ao ser impresso
         return f"FII(ticker='{self.ticker}')"

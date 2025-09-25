@@ -6,6 +6,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import date
 from dateutil.relativedelta import relativedelta
+import lxml
 
 
 class Scraper:
@@ -90,7 +91,7 @@ class Scraper:
 
         # Aplica o método privado de parsing do HTML
         indicadores_fii = self._parsear_pagina_fii(response.text)
-        if not indicadores_fii:
+        if not indicadores_fii  or 'Cotação' not in indicadores_fii:
             print(f"  > Conteúdo principal não encontrado para {ticker}. Ticker provavelmente inválido.")
             return None
 
@@ -151,58 +152,59 @@ class Scraper:
 
         return fii
 
-    def buscar_historico_precos(self, ticker: str):
+    def buscar_precos_em_lote(self, tickers: list[str]) -> pd.DataFrame:
         """
-        Busca o histórico de preços dos últimos 3 meses a partir de ontem.
+        Busca o preço de fecho mais recente para uma lista de tickers de forma otimizada,
+        fazendo um único download em lote.
 
         Args:
-            ticker (str): O ticker do FII (ex: 'MXRF11').
+            tickers (list[str]): Uma lista de tickers de FIIs (ex: ['MXRF11', 'HGLG11']).
 
         Returns:
-            DataFrame: um DF dos dados históricos, ou vazio em caso de erro.
+            pd.DataFrame: Um DataFrame contendo 'ticker', 'date', 'close' e 'volume'
+                          para todos os tickers que foram encontrados. Retorna um
+                          DataFrame vazio em caso de erro.
         """
-        print(f"Buscando histórico de preços para {ticker} via yfinance...")
+        print(f"Buscando preços recentes em lote para {len(tickers)} tickers via yfinance...")
+        if not tickers:
+            return pd.DataFrame()
+
         try:
+            # Adiciona o sufixo .SA a todos os tickers da lista
+            tickers_sa = [f"{ticker}.SA" for ticker in tickers]
 
-            # Define o período dinamicamente
-            data_final = date.today()  # O 'end' do yfinance não é incluído
-            data_inicial = data_final - relativedelta(months=3)
+            # Faz o download em lote. yf.download é muito mais rápido para múltiplos tickers.
+            # Pedimos 5 dias para garantir que apanhamos o último dia útil disponível.
+            df_lote = yf.Tickers(tickers_sa).download(period="30d", progress=False, auto_adjust=False)
+            
+            if df_lote.empty:
+                return pd.DataFrame()
+            
+            # Reestrutura os dados
+            df_final = df_lote.stack(future_stack=True).reset_index()
+            df_final
 
-            # Formata as datas para o padrão YYYY-MM-DD
-            data_inicial_str = data_inicial.strftime('%Y-%m-%d')
-            data_final_str = data_final.strftime('%Y-%m-%d')
+            # Renomeia as colunas para o nosso padrão
+            df_final.columns = [col.lower() for col in df_final.columns]
 
-            print(f"  > Buscando período de {data_inicial_str} a {data_final_str} (não incluso)...")
+            # Dropa valroes que não tem preço
+            df_final = df_final.dropna(subset=['close'])
 
-            # Adiciona o sufixo .SA para ativos brasileiros
-            ticker_sa = f"{ticker}.SA"
+            # Pega apenas o dia mais recente para cada ticker
+            df_final = df_final.loc[df_final.groupby('ticker')['date'].idxmax()]
 
-            # Cria um objeto Ticker do yfinance
-            fii_yf = yf.Ticker(ticker_sa)
-
-            # Baixa o histórico de preços para o período desejado
-            # Usa os parâmetros 'start' e 'end'
-            hist = fii_yf.history(start=data_inicial_str, end=data_final_str)
-
-            # Se o DataFrame estiver vazio, o ticker pode não existir
-            if hist.empty:
-                print(f"  > Nenhum dado encontrado para {ticker_sa}. O ticker pode ser inválido.")
-                return []
-
-            # Processa o DataFrame
-            # Transforma o índice (Date) em uma coluna normal
-            hist = hist.reset_index()
-            # Formata a data para o formato 'YYYY-MM-DD'
-            hist['Date'] = hist['Date'].dt.strftime('%Y-%m-%d')
-            # Renomeia as colunas para minúsculas para consistência
-            hist.columns = [col.lower() for col in hist.columns]
-
-            print(f"  > Histórico de {len(hist)} dias encontrado.")
-            return hist
+            # Limpa o sufixo .SA dos tickers
+            df_final['ticker'] = df_final['ticker'].str.replace('.SA', '', regex=False)
+            
+            # Formata a data
+            df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
+            
+            print(f"  > Preços de {len(df_final)} tickers encontrados com sucesso.")
+            return df_final
 
         except Exception as e:
-            print(f"  > Ocorreu um erro ao buscar dados para {ticker} no yfinance: {e}")
-            return []
+            print(f"  > Ocorreu um erro ao buscar dados em lote no yfinance: {e}")
+            return pd.DataFrame()
 
     # --- MÉTODOS PRIVADOS ---
 

@@ -1,5 +1,10 @@
 import fiiscraper as fscp
 import pandas as pd
+from fiiscraper.aws_uploader import upload_para_s3
+import time
+
+# --- CONFIGURAÇÃO ---
+BUCKET_S3 = 'fii-data-bucket'
 
 def run_pipeline():
     """
@@ -13,6 +18,8 @@ def run_pipeline():
     # Listagem de FIIs disponíveis no site Fundamentus
     lista_fiis = scraper.listar_todos_fiis()
 
+    # --- BUSCANDO DADOS ---
+    print("--- INICIANDO BUSCA DOS DADOS DE FIIS IDENTIFICADOS ---")
     # Busca os dados de indicadores do dia
     indicadores_fiis = []
     for fii in lista_fiis:
@@ -23,19 +30,20 @@ def run_pipeline():
         # Adiciona FII à lista
         indicadores_fiis.append(indicadores_fii)
 
-    indicadores_fiis
+    print("--- INICIANDO BUSCA DOS PREÇOS DOS FIIS ---")
     # Busca o histórico de preços para cada FII na lista
-    historico_fiis = pd.DataFrame()
+    preco_fiis = scraper.buscar_precos_em_lote(lista_fiis)
+
+    # --- MARCANDO FIIS QUE TEM NO YFINANCE ---
+    # Muda para 'tem_dados_yfinance = True' caso o FII tenha sido encontrado no yfinance
     for fii in lista_fiis:
-        # Busca o histórico de preços  ods últimos 3 meses
-        historico_fii = scraper.buscar_historico_precos(fii.ticker)
-
-        # Insere o nome do ticker como primeira coluna
-        historico_fii.insert(0, 'ticker', fii.ticker)
-
-        # Adiciona os dados ao dataframe
-        historico_fiis = pd.concat([historico_fiis, historico_fii])
+        if fii.ticker in preco_fiis['ticker'].tolist():
+            fii.tem_dados_yfinance = True
 
 # Garante que o pipeline só seja executado quando o script for chamado diretamente
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     run_pipeline()
+    end_time = time.perf_counter()
+    duration = end_time - start_time
+    print(f"\n--- Pipeline de preços concluído em {duration:.2f} segundos ---")
