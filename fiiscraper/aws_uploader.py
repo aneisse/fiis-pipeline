@@ -35,16 +35,16 @@ def upload_df_para_s3(df: pd.DataFrame, nome_bucket: str, nome_arquivo_s3: str) 
     )
 
     try:
-        # 1. Cria um buffer de bytes em memória (uma "caixa de despacho" virtual)
+        # Cria um buffer de bytes em memória (uma "caixa de despacho" virtual)
         buffer_parquet = io.BytesIO()
 
-        # 2. Escreve o DataFrame no buffer em formato Parquet
+        # Escreve o DataFrame no buffer em formato Parquet
         df.to_parquet(buffer_parquet, index=False)
 
-        # 3. "Rebobina" o buffer para o início antes de o ler para o upload
+        # "Rebobina" o buffer para o início antes de o ler para o upload
         buffer_parquet.seek(0)
 
-        # 4. Usa put_object para enviar o conteúdo do buffer (os bytes)
+        # Usa put_object para enviar o conteúdo do buffer (os bytes)
         s3_client.put_object(
             Bucket=nome_bucket,
             Key=nome_arquivo_s3,
