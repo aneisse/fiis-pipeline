@@ -4,9 +4,11 @@ from bs4 import BeautifulSoup
 from fiiscraper.models.fii import FII
 import yfinance as yf
 import pandas as pd
-from datetime import date
-from dateutil.relativedelta import relativedelta
-import lxml
+import logging
+import re
+
+# Pega uma instância do logger. A configuração é feita no main.py.
+log = logging.getLogger(__name__)
 
 
 class Scraper:
@@ -43,7 +45,7 @@ class Scraper:
             list[FII]: Uma lista de objetos da classe FII, cada um
                        inicializado com o ticker.
         """
-        print("Iniciando busca pela lista de todos os FIIs no Fundamentus...")
+        log.info("Iniciando busca pela lista de todos os FIIs no Fundamentus...")
 
         # Faz a requisição HTTP para obter o conteúdo da página
         response = self._buscar_html(self.url_lista_fiis)
@@ -54,7 +56,7 @@ class Scraper:
         # Encontra a tabela que contém a lista de FIIs
         tabela = soup.find('table', {'id': 'tabelaFiiImoveis'})
         if not tabela:
-            print("Tabela de FIIs não encontrada na página.")
+            log.error("Tabela de FIIs não encontrada na página.")
             return []
 
         lista_de_fiis = []
@@ -72,7 +74,7 @@ class Scraper:
 
         lista_de_fiis = list(set(lista_de_fiis))  # Remove duplicatas
 
-        print(f"{len(lista_de_fiis)} FIIs encontrados.")
+        log.info(f"{len(lista_de_fiis)} FIIs encontrados.")
         return lista_de_fiis
 
     def buscar_indicadores_dia(self, ticker: str):
@@ -80,7 +82,7 @@ class Scraper:
         Busca os indicadores de um FII específico no Fundamentus.
         Retorna um objeto da classe FII.
         """
-        print(f"Buscando indicadores para {ticker}...")
+        log.info(f"Buscando indicadores para {ticker}...")
         # Construindo o URL de acordo com o site do Fundamentus
         url_fii = f"{self.url_base_fii}?papel={ticker}"
 
@@ -92,63 +94,66 @@ class Scraper:
         # Aplica o método privado de parsing do HTML
         indicadores_fii = self._parsear_pagina_fii(response.text)
         if not indicadores_fii  or 'Cotação' not in indicadores_fii:
-            print(f"  > Conteúdo principal não encontrado para {ticker}. Ticker provavelmente inválido.")
+            log.warning(f"  > Conteúdo principal não encontrado para {ticker}. Ticker provavelmente inválido.")
             return None
+
+        # Faz parsing e limpeza de dados
+        indicadores_limpos = self._limpar_e_converter_dados(indicadores_fii)
 
         # Popula os dados do FII
         fii = FII(ticker=ticker)
         # Dados gerais
-        fii.nome = indicadores_fii.get('Nome')
-        fii.mandato = indicadores_fii.get('Mandato')
-        fii.segmento = indicadores_fii.get('Segmento')
-        fii.tipo_gestao = indicadores_fii.get('Gestão')
+        fii.nome = indicadores_limpos.get('Nome')
+        fii.mandato = indicadores_limpos.get('Mandato')
+        fii.segmento = indicadores_limpos.get('Segmento')
+        fii.tipo_gestao = indicadores_limpos.get('Gestão')
 
         # Indicadores da Cotação
-        fii.cotacao = indicadores_fii.get('Cotação')
-        fii.data_ult_cotacao = indicadores_fii.get('Data últ cot')
-        fii.min_52_semanas = indicadores_fii.get('Min 52 sem')
-        fii.max_52_semanas = indicadores_fii.get('Max 52 sem')
-        fii.volume_medio_2meses = indicadores_fii.get('Vol $ méd (2m)')
-        fii.valor_mercado = indicadores_fii.get('Valor de mercado')
-        fii.numero_cotas = indicadores_fii.get('Nro. Cotas')
-        # fii.data_ult_relatorio_gerencial = indicadores_fii.get('')
-        fii.data_ult_info_trimestral = indicadores_fii.get('Últ Info Trimestral')
-        fii.var_dia = indicadores_fii.get('Dia')
-        fii.var_mes = indicadores_fii.get('Mês')
-        fii.var_30_dias = indicadores_fii.get('30 dias')
-        fii.var_12_meses = indicadores_fii.get('12 meses')
+        fii.cotacao = indicadores_limpos.get('Cotação')
+        fii.data_ult_cotacao = indicadores_limpos.get('Data últ cot')
+        fii.min_52_semanas = indicadores_limpos.get('Min 52 sem')
+        fii.max_52_semanas = indicadores_limpos.get('Max 52 sem')
+        fii.volume_medio_2meses = indicadores_limpos.get('Vol $ méd (2m)')
+        fii.valor_mercado = indicadores_limpos.get('Valor de mercado')
+        fii.numero_cotas = indicadores_limpos.get('Nro. Cotas')
+        # fii.data_ult_relatorio_gerencial = indicadores_limpos.get('')
+        fii.data_ult_info_trimestral = indicadores_limpos.get('Últ Info Trimestral')
+        fii.var_dia = indicadores_limpos.get('Dia')
+        fii.var_mes = indicadores_limpos.get('Mês')
+        fii.var_30_dias = indicadores_limpos.get('30 dias')
+        fii.var_12_meses = indicadores_limpos.get('12 meses')
 
         # Indicadores de Rendimento
-        fii.ffo_yield = indicadores_fii.get('FFO Yield')
-        fii.ffo_cota = indicadores_fii.get('FFO/Cota')
-        fii.div_yield = indicadores_fii.get('FFO Yield')
-        fii.div_cota = indicadores_fii.get('Dividendo/cota')
-        fii.p_vp = indicadores_fii.get('P/VP')
-        fii.vp_cota = indicadores_fii.get('VP/Cota')
+        fii.ffo_yield = indicadores_limpos.get('FFO Yield')
+        fii.ffo_cota = indicadores_limpos.get('FFO/Cota')
+        fii.div_yield = indicadores_limpos.get('FFO Yield')
+        fii.div_cota = indicadores_limpos.get('Dividendo/cota')
+        fii.p_vp = indicadores_limpos.get('P/VP')
+        fii.vp_cota = indicadores_limpos.get('VP/Cota')
 
         # indicadores de resultados
-        fii.receita_12_meses = indicadores_fii.get('Receita')
-        fii.venda_ativos_12_meses = indicadores_fii.get('Venda de ativos')
-        fii.ffo_12_meses = indicadores_fii.get('FFO')
-        fii.rendimento_distribuido_12_meses = indicadores_fii.get('Rend. Distribuído')
-        fii.receita_3_meses = indicadores_fii.get('Receita_2')
-        fii.venda_ativos_3_meses = indicadores_fii.get('Venda de ativos_2')
-        fii.ffo_3_meses = indicadores_fii.get('FFO_2')
-        fii.rendimento_distribuido_3_meses = indicadores_fii.get('Rend. Distribuído_2')
+        fii.receita_12_meses = indicadores_limpos.get('Receita')
+        fii.venda_ativos_12_meses = indicadores_limpos.get('Venda de ativos')
+        fii.ffo_12_meses = indicadores_limpos.get('FFO')
+        fii.rendimento_distribuido_12_meses = indicadores_limpos.get('Rend. Distribuído')
+        fii.receita_3_meses = indicadores_limpos.get('Receita_2')
+        fii.venda_ativos_3_meses = indicadores_limpos.get('Venda de ativos_2')
+        fii.ffo_3_meses = indicadores_limpos.get('FFO_2')
+        fii.rendimento_distribuido_3_meses = indicadores_limpos.get('Rend. Distribuído_2')
 
         # indicadores de patrimônio
-        fii.ativos = indicadores_fii.get('Ativos')
-        fii.patrimonio_liquido = indicadores_fii.get('Patrim Líquido')
+        fii.ativos = indicadores_limpos.get('Ativos')
+        fii.patrimonio_liquido = indicadores_limpos.get('Patrim Líquido')
 
         # indicadores de imóveis
-        fii.qtd_imoveis = indicadores_fii.get('Qtd imóveis')
-        fii.qtd_unidades = indicadores_fii.get('Qtd Unidades')
-        fii.imoveis_pl = indicadores_fii.get('Imóveis/PL do FII')
-        fii.metros_quadrados = indicadores_fii.get('Área (m2)')
-        fii.aluguel_metro_quadrado = indicadores_fii.get('Aluguel/m2')
-        fii.preco_metro_quadrado = indicadores_fii.get('Preço do m2')
-        fii.cap_rate = indicadores_fii.get('Cap Rate')
-        fii.vacancia_media = indicadores_fii.get('Vacância Média')
+        fii.qtd_imoveis = indicadores_limpos.get('Qtd imóveis')
+        fii.qtd_unidades = indicadores_limpos.get('Qtd Unidades')
+        fii.imoveis_pl = indicadores_limpos.get('Imóveis/PL do FII')
+        fii.metros_quadrados = indicadores_limpos.get('Área (m2)')
+        fii.aluguel_metro_quadrado = indicadores_limpos.get('Aluguel/m2')
+        fii.preco_metro_quadrado = indicadores_limpos.get('Preço do m2')
+        fii.cap_rate = indicadores_limpos.get('Cap Rate')
+        fii.vacancia_media = indicadores_limpos.get('Vacância Média')
 
         return fii
 
@@ -165,7 +170,7 @@ class Scraper:
                           para todos os tickers que foram encontrados. Retorna um
                           DataFrame vazio em caso de erro.
         """
-        print(f"Buscando preços recentes em lote para {len(tickers)} tickers via yfinance...")
+        log.info(f"Buscando preços recentes em lote para {len(tickers)} tickers via yfinance...")
         if not tickers:
             return pd.DataFrame()
 
@@ -176,10 +181,10 @@ class Scraper:
             # Faz o download em lote. yf.download é muito mais rápido para múltiplos tickers.
             # Pedimos 5 dias para garantir que apanhamos o último dia útil disponível.
             df_lote = yf.Tickers(tickers_sa).download(period="30d", progress=False, auto_adjust=False)
-            
+
             if df_lote.empty:
                 return pd.DataFrame()
-            
+
             # Reestrutura os dados
             df_final = df_lote.stack(future_stack=True).reset_index()
             df_final
@@ -195,15 +200,15 @@ class Scraper:
 
             # Limpa o sufixo .SA dos tickers
             df_final['ticker'] = df_final['ticker'].str.replace('.SA', '', regex=False)
-            
+
             # Formata a data
             df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
-            
-            print(f"  > Preços de {len(df_final)} tickers encontrados com sucesso.")
+
+            log.info(f"  > Preços de {len(df_final)} tickers encontrados com sucesso.")
             return df_final
 
         except Exception as e:
-            print(f"  > Ocorreu um erro ao buscar dados em lote no yfinance: {e}")
+            log.error(f"  > Ocorreu um erro ao buscar dados em lote no yfinance: {e}")
             return pd.DataFrame()
 
     # --- MÉTODOS PRIVADOS ---
@@ -211,14 +216,38 @@ class Scraper:
     def _buscar_html(self, url: str):
         """Método auxiliar para fazer a requisição HTTP e retornar o HTML."""
 
-        print(f" > Acessando URL: {url}")
+        log.debug(f" > Acessando URL: {url}")
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()  # Lança um erro para status ruins (404, 500, etc.)
             return response
         except requests.RequestException as e:
-            print(f"Erro ao acessar a URL: {e}")
+            log.error(f"Erro ao acessar a URL: {e}")
             return None
+
+    def _limpar_e_converter_dados(self, dados_brutos: dict) -> dict:
+        """
+        Recebe um dicionário de dados extraídos como strings e aplica
+        a limpeza e conversão para tipos numéricos.
+        """
+        dados_limpos = {}
+        for chave, valor_str in dados_brutos.items():
+            valor_limpo = valor_str
+            try:
+                # Se o valor contém '%', remove, converte para float e divide por 100
+                if '%' in valor_str:
+                    valor_limpo = float(valor_str.replace('%', '').replace('.', '').replace(',', '.')) / 100
+                # Se o valor é um número (inteiro ou decimal)
+                elif re.match(r'^-?\d{1,3}(\.\d{3})*(,\d+)?$', valor_str):
+                    valor_limpo = float(valor_str.replace('.', '').replace(',', '.'))
+                # Outros casos (como datas ou texto puro) permanecem como string
+            except (ValueError, TypeError):
+                # Se a conversão falhar, mantém o valor original ou define como None
+                valor_limpo = None
+
+            dados_limpos[chave] = valor_limpo
+
+        return dados_limpos
 
     def _parsear_pagina_fii(self, html_content: str):
         """Método auxiliar para extrair os dados da página de um FII."""

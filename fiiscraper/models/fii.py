@@ -60,7 +60,6 @@ class FII:
         # Indicador para marcar se o FII foi encontrado no yfinance
         self.tem_dados_yfinance = False
 
-
     def __repr__(self):
         # Este método define como o objeto será exibido ao ser impresso
         return f"FII(ticker='{self.ticker}')"
