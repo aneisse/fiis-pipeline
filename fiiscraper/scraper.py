@@ -1,4 +1,4 @@
-# Import de pacotes
+# Package imports
 import requests
 from bs4 import BeautifulSoup
 from fiiscraper.models.fii import FII
@@ -7,26 +7,26 @@ import pandas as pd
 import logging
 import re
 
-# Pega uma instância do logger. A configuração é feita no main.py.
+# Makes an logger instance. The setup is made in main.py.
 log = logging.getLogger(__name__)
 
 
 class Scraper:
     """
-    Classe responsável pela coleta de dados de FIIs de diversas fontes.
+    Class responsible for fund (FII) data gathering from multiple sources.
     """
     def __init__(self):
-        # Fonte da lista de FIIs disponíveis para scraping
+        # Source for the funds available for scraping
         self.url_lista_fiis = "https://www.fundamentus.com.br/fii_imoveis.php"
 
-        # URL base para obtenção do link de cada página
+        # Base URL for fetching each fund link
         self.url_base_fii = "https://www.fundamentus.com.br/detalhes.php"  # Ex: ?papel=MXRF11
 
-        # URL de API para obtenção dos dados de preço histórico
+        # APU URL for historic price fetching
         self.url_base_api_precos = "https://brapi.dev/api/quote/"  # Ex: MXRF11?range=3mo
 
-        # Simulando um navegador real.
-        # Muitos sites bloqueiam requisições sem cabeçalhos de navegadores
+        # Simulating browser header.
+        # Many sites block headerless requests
         self.headers = {
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -35,80 +35,82 @@ class Scraper:
             )
         }
 
-    # --- MÉTODOS PÚBLICOS ---
+    # --- PUBLIC METHODS ---
 
     def listar_todos_fiis(self):
         """
-        Busca a lista de todos os FIIs listados no site Fundamentus.
+        Gets a list of all funds (FIIs) listed on the Fundamentus website.
 
         Returns:
-            list[FII]: Uma lista de objetos da classe FII, cada um
-                       inicializado com o ticker.
+            list[FII]: A list of objects of FII class, each initialized with only the ticker.
         """
-        log.info("Iniciando busca pela lista de todos os FIIs no Fundamentus...")
+        log.info("Initiating the search for all FIIs on Fundamentus...")
 
-        # Faz a requisição HTTP para obter o conteúdo da página
+        # Makes HTTP request to get page content
         response = self._buscar_html(self.url_lista_fiis)
 
-        # Usa o BeautifulSoup para parsear (analisar) o HTML
+        # Uses BeautifulSoup to parse (analyze) the HTML
         soup = BeautifulSoup(response.text, 'lxml')
 
-        # Encontra a tabela que contém a lista de FIIs
+        # Finds the table that contains de funds data
         tabela = soup.find('table', {'id': 'tabelaFiiImoveis'})
         if not tabela:
-            log.error("Tabela de FIIs não encontrada na página.")
+            log.error("FII table not foun on the page.")
             return []
 
         lista_de_fiis = []
-        # Itera sobre todas as linhas (<tr>) do corpo da tabela (<tbody>)
-        # O [1:] pula a primeira linha, que é o cabeçalho da tabela
+        # Iterates over all line (<tr>) from the table's body (<tbody>)
+        # The [1:] skips the first line (table header)
         for linha in tabela.find('tbody').find_all('tr'):
-            # Em cada linha, pega a primeira célula (<td>), que contém o ticker
+            # Gets the first cell from each line (<td>), which is the ticker
             celulas = linha.find_all('td')
             if celulas:
                 ticker = celulas[0].text.strip()
 
-                # Cria o objeto FII e adiciona na nossa lista
+                # Creates the FII object and adds it to the list
                 novo_fii = FII(ticker=ticker)
                 lista_de_fiis.append(novo_fii)
 
-        lista_de_fiis = list(set(lista_de_fiis))  # Remove duplicatas
+        lista_de_fiis = list(set(lista_de_fiis))  # Removes duplicates
 
-        log.info(f"{len(lista_de_fiis)} FIIs encontrados.")
+        log.info(f"{len(lista_de_fiis)} FIIs found.")
         return lista_de_fiis
 
     def buscar_indicadores_dia(self, ticker: str):
         """
-        Busca os indicadores de um FII específico no Fundamentus.
-        Retorna um objeto da classe FII.
+        Fetch indicators for a specific fund (FII) on Fundamentus.
+        Returns an object of class FII.
+
+        Args:
+            ticker (str): The ticker of the fund
         """
-        log.info(f"Buscando indicadores para {ticker}...")
-        # Construindo o URL de acordo com o site do Fundamentus
+        log.info(f"Fetching indicators for {ticker}...")
+        # Building the URL in accordance to the Fundamentus website
         url_fii = f"{self.url_base_fii}?papel={ticker}"
 
-        # Faz a requisição HTTP para obter o conteúdo da página
+        # Makes the HTTP request to obtain the page content
         response = self._buscar_html(url_fii)
         if not response:
             return None
 
-        # Aplica o método privado de parsing do HTML
+        # Uses the private method to parse the HTML
         indicadores_fii = self._parsear_pagina_fii(response.text)
         if not indicadores_fii  or 'Cotação' not in indicadores_fii:
-            log.warning(f"  > Conteúdo principal não encontrado para {ticker}. Ticker provavelmente inválido.")
+            log.warning(f"  > Main content not found for {ticker}. Ticker is probably invalid.")
             return None
 
-        # Faz parsing e limpeza de dados
+        # Data cleaning and type conversion
         indicadores_limpos = self._limpar_e_converter_dados(indicadores_fii)
 
-        # Popula os dados do FII
+        # Populates the FII with the data
         fii = FII(ticker=ticker)
-        # Dados gerais
+        # General data
         fii.nome = indicadores_limpos.get('Nome')
         fii.mandato = indicadores_limpos.get('Mandato')
         fii.segmento = indicadores_limpos.get('Segmento')
         fii.tipo_gestao = indicadores_limpos.get('Gestão')
 
-        # Indicadores da Cotação
+        # Price indicators
         fii.cotacao = indicadores_limpos.get('Cotação')
         fii.data_ult_cotacao = indicadores_limpos.get('Data últ cot')
         fii.min_52_semanas = indicadores_limpos.get('Min 52 sem')
@@ -123,7 +125,7 @@ class Scraper:
         fii.var_30_dias = indicadores_limpos.get('30 dias')
         fii.var_12_meses = indicadores_limpos.get('12 meses')
 
-        # Indicadores de Rendimento
+        # Yield indicators
         fii.ffo_yield = indicadores_limpos.get('FFO Yield')
         fii.ffo_cota = indicadores_limpos.get('FFO/Cota')
         fii.div_yield = indicadores_limpos.get('FFO Yield')
@@ -131,7 +133,7 @@ class Scraper:
         fii.p_vp = indicadores_limpos.get('P/VP')
         fii.vp_cota = indicadores_limpos.get('VP/Cota')
 
-        # indicadores de resultados
+        # Revenue indicators
         fii.receita_12_meses = indicadores_limpos.get('Receita')
         fii.venda_ativos_12_meses = indicadores_limpos.get('Venda de ativos')
         fii.ffo_12_meses = indicadores_limpos.get('FFO')
@@ -141,11 +143,11 @@ class Scraper:
         fii.ffo_3_meses = indicadores_limpos.get('FFO_2')
         fii.rendimento_distribuido_3_meses = indicadores_limpos.get('Rend. Distribuído_2')
 
-        # indicadores de patrimônio
+        # Net equity
         fii.ativos = indicadores_limpos.get('Ativos')
         fii.patrimonio_liquido = indicadores_limpos.get('Patrim Líquido')
 
-        # indicadores de imóveis
+        # Real estate indicators
         fii.qtd_imoveis = indicadores_limpos.get('Qtd imóveis')
         fii.qtd_unidades = indicadores_limpos.get('Qtd Unidades')
         fii.imoveis_pl = indicadores_limpos.get('Imóveis/PL do FII')
@@ -159,90 +161,89 @@ class Scraper:
 
     def buscar_precos_em_lote(self, tickers: list[str]) -> pd.DataFrame:
         """
-        Busca o preço de fecho mais recente para uma lista de tickers de forma otimizada,
-        fazendo um único download em lote.
+        Fetches the most recent closing price for a list of tickers in an optimized way,
+        performing a single batch download.
 
         Args:
-            tickers (list[str]): Uma lista de tickers de FIIs (ex: ['MXRF11', 'HGLG11']).
+            tickers (list[str]): A list of FII tickers (e.g., ['MXRF11', 'HGLG11']).
 
         Returns:
-            pd.DataFrame: Um DataFrame contendo 'ticker', 'date', 'close' e 'volume'
-                          para todos os tickers que foram encontrados. Retorna um
-                          DataFrame vazio em caso de erro.
+            pd.DataFrame: A DataFrame containing 'ticker', 'date', 'close', and 'volume'
+                  for all tickers found. Returns an empty DataFrame in case of error.
         """
-        log.info(f"Buscando preços recentes em lote para {len(tickers)} tickers via yfinance...")
+        log.info(f"Fetching for recent prices in batch for {len(tickers)} tickers via yfinance...")
         if not tickers:
             return pd.DataFrame()
 
         try:
-            # Adiciona o sufixo .SA a todos os tickers da lista
+            # Adds the '.SA' suffix to all tickers
             tickers_sa = [f"{ticker}.SA" for ticker in tickers]
 
-            # Faz o download em lote. yf.download é muito mais rápido para múltiplos tickers.
-            # Pedimos 5 dias para garantir que apanhamos o último dia útil disponível.
+            # Downloads the tickers in batch. yf.download is quicker for multiple tickers.
+            # It gets 5 days toa ssure we got the last working day on the window.
             df_lote = yf.Tickers(tickers_sa).download(period="30d", progress=False, auto_adjust=False)
 
             if df_lote.empty:
                 return pd.DataFrame()
 
-            # Reestrutura os dados
+            # Restructures the data
             df_final = df_lote.stack(future_stack=True).reset_index()
             df_final
 
-            # Renomeia as colunas para o nosso padrão
+            # Renames the columns
             df_final.columns = [col.lower() for col in df_final.columns]
 
-            # Dropa valroes que não tem preço
+            # Drops values without price
             df_final = df_final.dropna(subset=['close'])
 
-            # Pega apenas o dia mais recente para cada ticker
+            # Gets the most recent day for each ticker
             df_final = df_final.loc[df_final.groupby('ticker')['date'].idxmax()]
 
-            # Limpa o sufixo .SA dos tickers
+            # Removes the '.SA' suffix from tickers
             df_final['ticker'] = df_final['ticker'].str.replace('.SA', '', regex=False)
 
-            # Formata a data
+            # Formats the date
             df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
 
-            log.info(f"  > Preços de {len(df_final)} tickers encontrados com sucesso.")
+            log.info(f"  > Prices for {len(df_final)} tickers successfully found.")
             return df_final
 
         except Exception as e:
-            log.error(f"  > Ocorreu um erro ao buscar dados em lote no yfinance: {e}")
+            log.error(f"  > An error ocurred during the batch download from yfinance: {e}")
             return pd.DataFrame()
 
-    # --- MÉTODOS PRIVADOS ---
+    # --- PRIVATE METHODS ---
 
     def _buscar_html(self, url: str):
-        """Método auxiliar para fazer a requisição HTTP e retornar o HTML."""
+        """Helper method to make the HTTP request and return the HTML."""
 
-        log.debug(f" > Acessando URL: {url}")
+        log.debug(f" > Accessing URL: {url}")
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()  # Lança um erro para status ruins (404, 500, etc.)
+            response.raise_for_status()  # Raises error for bad status (404, 500, etc.)
             return response
         except requests.RequestException as e:
-            log.error(f"Erro ao acessar a URL: {e}")
+            log.error(f"Error during request of URL: {e}")
             return None
 
     def _limpar_e_converter_dados(self, dados_brutos: dict) -> dict:
         """
-        Recebe um dicionário de dados extraídos como strings e aplica
-        a limpeza e conversão para tipos numéricos.
+        Receives a dictionary of extracted data as strings and applies
+        cleaning and conversion to numeric types.
         """
         dados_limpos = {}
         for chave, valor_str in dados_brutos.items():
             valor_limpo = valor_str
             try:
-                # Se o valor contém '%', remove, converte para float e divide por 100
+                # If the value contains '%', remove it, convert to float, and divide by 100
                 if '%' in valor_str:
                     valor_limpo = float(valor_str.replace('%', '').replace('.', '').replace(',', '.')) / 100
-                # Se o valor é um número (inteiro ou decimal)
+                # If the value is a number (integer or decimal)
                 elif re.match(r'^-?\d{1,3}(\.\d{3})*(,\d+)?$', valor_str):
                     valor_limpo = float(valor_str.replace('.', '').replace(',', '.'))
-                # Outros casos (como datas ou texto puro) permanecem como string
+                # Other cases (like dates or plain text) remain as strings
             except (ValueError, TypeError):
-                # Se a conversão falhar, mantém o valor original ou define como None
+                # If conversion fails, keep the original value or set it to None
                 valor_limpo = None
 
             dados_limpos[chave] = valor_limpo
@@ -250,39 +251,39 @@ class Scraper:
         return dados_limpos
 
     def _parsear_pagina_fii(self, html_content: str):
-        """Método auxiliar para extrair os dados da página de um FII."""
+        """Helper method to extract data from a FII's page."""
 
-        # Usa o BeautifulSoup para parsear (analisar) o HTML
+        # Uses BeautifulSoup to parse the HTML
         soup = BeautifulSoup(html_content, 'lxml')
 
-        # Cria estrutura de dados final
+        # Creates the final data structure
         dados_fii = {}
-        # Iterando em todas as tabelas
+        # Iterating through all tables
         for table in soup.find_all('table'):
 
-            # Obtendo todas as linhas das tabelas
+            # Getting all table rows
             for line in table.find_all('tr'):
-                # Obtendo os elementos de label
+                # Getting the label elements
                 labels = line.select('td[class*="label"]')
-                # Obtendo os elmentos de dados
+                # Getting the data elements
                 data = line.select('td[class*="data"]')
 
                 for label_cell, data_cell in zip(labels, data):
-                    # Garante que ambos foram encontrados na mesma linha
+                    # Ensures both were found on the same line
                     if label_cell and data_cell:
-                        # Limpa o texto, removendo espaços e o '?' inicial
+                        # Cleans the text, removing spaces and the initial '?'
                         help_span = label_cell.find('span', class_='help')
                         if help_span:
-                            help_span.decompose()  # Remove o elemento <span> inteiro
+                            help_span.decompose()  # Removes the entire <span> element
 
                         chave = label_cell.get_text(strip=True)
                         valor = data_cell.get_text(strip=True)
 
-                        # Checa se a chave já está contida no DIC
+                        # Checks if the key is already in the dictionary
                         if chave in dados_fii:
                             chave = f"{chave}_2"
 
-                        # Adiciona ao nosso dicionário de resultados
+                        # Adds to our results dictionary
                         dados_fii[chave] = valor
 
         return dados_fii

@@ -1,16 +1,16 @@
 class FII:
     def __init__(self, ticker):
 
-        # Atributos base do FII
+        # FII base attributes
         self.ticker = ticker
         self.nome = None
 
-        # Indicadores de Gestão
+        # Management Indicators
         self.mandato = None
         self.segmento = None
         self.tipo_gestao = None
 
-        # Indicadores da Cotação
+        # Price Indicators
         self.cotacao = None
         self.data_ult_cotacao = None
         self.min_52_semanas = None
@@ -25,7 +25,7 @@ class FII:
         self.var_30_dias = None
         self.var_12_meses = None
 
-        # Indicadores de Rendimento
+        # Yield Indicators
         self.ffo_yield = None
         self.ffo_cota = None
         self.div_yield = None
@@ -33,7 +33,7 @@ class FII:
         self.p_vp = None
         self.vp_cota = None
 
-        # Indicadores de Resultados
+        # Revenue Indicators
         self.receita_12_meses = None
         self.venda_ativos_12_meses = None
         self.ffo_12_meses = None
@@ -43,11 +43,11 @@ class FII:
         self.ffo_3_meses = None
         self.rendimento_distribuido_3_meses = None
 
-        # Indicadores de patrimônio
+        # Equity Indicators
         self.ativos = None
         self.patrimonio_liquido = None
 
-        # Indicadores de Imóveis
+        # Real Estate Indicators
         self.qtd_imoveis = None
         self.qtd_unidades = None
         self.imoveis_pl = None
@@ -57,9 +57,9 @@ class FII:
         self.cap_rate = None
         self.vacancia_media = None
 
-        # Indicador para marcar se o FII foi encontrado no yfinance
+        # Indicator to mark if the FII was found on yfinance
         self.tem_dados_yfinance = False
 
     def __repr__(self):
-        # Este método define como o objeto será exibido ao ser impresso
+        # This method defines how the object will be displayed when printed
         return f"FII(ticker='{self.ticker}')"
