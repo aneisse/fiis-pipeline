@@ -51,7 +51,7 @@ def run_pipeline():
             fii.tem_dados_yfinance = True
 
     # --- SUBINDO DADOS PARA O S3
-    logging.info("--- INICIANDO ENIO DE DADOS PARA O S3 ---")
+    logging.info("--- INICIANDO ENVIO DE DADOS PARA O S3 ---")
     # Estatísticas do dia
     if not indicadores_fiis:
         logging.info("Enviando estatísticas do dia para o S3...")

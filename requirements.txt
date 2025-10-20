@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+yfinance
+pandas
+python-dateutil
+lxml
+boto3
+pyarrow
