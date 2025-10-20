@@ -3,63 +3,64 @@ from botocore.exceptions import NoCredentialsError, ClientError
 import logging
 import pandas as pd
 import io  # Necessário para o buffer em memória
+import io  # Required for the in-memory buffer
 
-# Configuração de logging para vermos mensagens informativas e de erro
+# Logging configuration to see informational and error messages
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
 
-def upload_df_para_s3(df: pd.DataFrame, nome_bucket: str, nome_arquivo_s3: str) -> bool:
+def upload_df_to_s3(df: pd.DataFrame, bucket_name: str, s3_filename: str) -> bool:
     """
-    Converte um DataFrame do pandas para Parquet em memória e faz o upload para o S3.
+    Converts a pandas DataFrame to Parquet in memory and uploads it to S3.
 
-    Esta é a abordagem otimizada que evita salvar ficheiros temporários no disco.
+    This is the optimized approach that avoids saving temporary files to disk.
 
     Args:
-        df (pd.DataFrame): O DataFrame a ser enviado.
-        nome_bucket (str): O nome do bucket S3 de destino.
-        nome_arquivo_s3 (str): O nome (caminho) que o arquivo terá no S3.
+        df (pd.DataFrame): The DataFrame to be uploaded.
+        bucket_name (str): The name of the destination S3 bucket.
+        s3_filename (str): The name (path) the file will have in S3.
 
     Returns:
-        bool: True se o upload foi bem-sucedido, False caso contrário.
+        bool: True if the upload was successful, False otherwise.
     """
-    # Cria um cliente S3. O boto3 buscará as credenciais automaticamente
-    # do seu ambiente (configuradas via 'aws configure' ou IAM Role no Lambda).
+    # Creates an S3 client. Boto3 will automatically look for credentials
+    # in your environment (configured via 'aws configure' or an IAM Role on Lambda).
     s3_client = boto3.client('s3')
 
     logging.info(
-        f"Iniciando upload de DataFrame em memória para "
-        f"'s3://{nome_bucket}/{nome_arquivo_s3}'..."
+        f"Starting in-memory DataFrame upload to "
+        f"'s3://{bucket_name}/{s3_filename}'..."
     )
 
     try:
-        # Cria um buffer de bytes em memória (uma "caixa de despacho" virtual)
+        # Creates an in-memory bytes buffer (a virtual "dispatch box")
         buffer_parquet = io.BytesIO()
 
-        # Escreve o DataFrame no buffer em formato Parquet
+        # Writes the DataFrame to the buffer in Parquet format
         df.to_parquet(buffer_parquet, index=False)
 
-        # "Rebobina" o buffer para o início antes de o ler para o upload
+        # "Rewinds" the buffer to the beginning before reading it for the upload
         buffer_parquet.seek(0)
 
-        # Usa put_object para enviar o conteúdo do buffer (os bytes)
+        # Uses put_object to send the buffer's content (the bytes)
         s3_client.put_object(
-            Bucket=nome_bucket,
-            Key=nome_arquivo_s3,
+            Bucket=bucket_name,
+            Key=s3_filename,
             Body=buffer_parquet
         )
 
-        logging.info("Upload realizado com sucesso!")
+        logging.info("Upload successful!")
         return True
     except NoCredentialsError:
-        logging.error("Erro: Credenciais da AWS não encontradas.")
+        logging.error("Error: AWS credentials not found.")
         return False
     except ClientError as e:
-        # Trata erros específicos da API da AWS, como "Bucket Not Found"
-        logging.error(f"Um erro da AWS ocorreu: {e}")
+        # Handles specific AWS API errors, like "Bucket Not Found"
+        logging.error(f"An AWS error occurred: {e}")
         return False
     except Exception as e:
-        logging.error(f"Um erro inesperado ocorreu durante o upload: {e}")
+        logging.error(f"An unexpected error occurred during the upload: {e}")
         return False

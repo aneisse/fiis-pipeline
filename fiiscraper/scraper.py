@@ -7,7 +7,7 @@ import pandas as pd
 import logging
 import re
 
-# Makes an logger instance. The setup is made in main.py.
+# Creates a logger instance. The setup is done in main.py.
 log = logging.getLogger(__name__)
 
 
@@ -19,13 +19,13 @@ class Scraper:
         # Source for the funds available for scraping
         self.url_lista_fiis = "https://www.fundamentus.com.br/fii_imoveis.php"
 
-        # Base URL for fetching each fund link
+        # Base URL for fetching each fund's details page
         self.url_base_fii = "https://www.fundamentus.com.br/detalhes.php"  # Ex: ?papel=MXRF11
 
-        # APU URL for historic price fetching
+        # API URL for historic price fetching
         self.url_base_api_precos = "https://brapi.dev/api/quote/"  # Ex: MXRF11?range=3mo
 
-        # Simulating browser header.
+        # Simulating a browser header.
         # Many sites block headerless requests
         self.headers = {
             'User-Agent': (
@@ -46,28 +46,28 @@ class Scraper:
         """
         log.info("Initiating the search for all FIIs on Fundamentus...")
 
-        # Makes HTTP request to get page content
+        # Makes an HTTP request to get the page content
         response = self._buscar_html(self.url_lista_fiis)
 
-        # Uses BeautifulSoup to parse (analyze) the HTML
+        # Uses BeautifulSoup to parse the HTML
         soup = BeautifulSoup(response.text, 'lxml')
 
-        # Finds the table that contains de funds data
+        # Finds the table that contains the funds data
         tabela = soup.find('table', {'id': 'tabelaFiiImoveis'})
         if not tabela:
-            log.error("FII table not foun on the page.")
+            log.error("FII table not found on the page.")
             return []
 
         lista_de_fiis = []
-        # Iterates over all line (<tr>) from the table's body (<tbody>)
-        # The [1:] skips the first line (table header)
+        # Iterates over all rows (<tr>) from the table's body (<tbody>)
+        # The [1:] would skip the first row (table header), but here we iterate all
         for linha in tabela.find('tbody').find_all('tr'):
-            # Gets the first cell from each line (<td>), which is the ticker
+            # Gets the first cell from each row (<td>), which contains the ticker
             celulas = linha.find_all('td')
             if celulas:
                 ticker = celulas[0].text.strip()
 
-                # Creates the FII object and adds it to the list
+                # Creates an FII object and adds it to the list
                 novo_fii = FII(ticker=ticker)
                 lista_de_fiis.append(novo_fii)
 
@@ -85,10 +85,10 @@ class Scraper:
             ticker (str): The ticker of the fund
         """
         log.info(f"Fetching indicators for {ticker}...")
-        # Building the URL in accordance to the Fundamentus website
+        # Building the URL according to the Fundamentus website structure
         url_fii = f"{self.url_base_fii}?papel={ticker}"
 
-        # Makes the HTTP request to obtain the page content
+        # Makes the HTTP request to get the page content
         response = self._buscar_html(url_fii)
         if not response:
             return None
@@ -99,10 +99,10 @@ class Scraper:
             log.warning(f"  > Main content not found for {ticker}. Ticker is probably invalid.")
             return None
 
-        # Data cleaning and type conversion
+        # Cleans and converts data types
         indicadores_limpos = self._limpar_e_converter_dados(indicadores_fii)
 
-        # Populates the FII with the data
+        # Populates the FII object with the data
         fii = FII(ticker=ticker)
         # General data
         fii.nome = indicadores_limpos.get('Nome')
@@ -176,10 +176,10 @@ class Scraper:
             return pd.DataFrame()
 
         try:
-            # Adds the '.SA' suffix to all tickers
+            # Adds the '.SA' suffix to all tickers for yfinance compatibility
             tickers_sa = [f"{ticker}.SA" for ticker in tickers]
 
-            # Downloads the tickers in batch. yf.download is quicker for multiple tickers.
+            # Downloads the tickers in a batch. yf.Tickers().download is faster for multiple tickers.
             # It gets 5 days toa ssure we got the last working day on the window.
             df_lote = yf.Tickers(tickers_sa).download(period="30d", progress=False, auto_adjust=False)
 
@@ -193,13 +193,13 @@ class Scraper:
             # Renames the columns
             df_final.columns = [col.lower() for col in df_final.columns]
 
-            # Drops values without price
+            # Drops rows with no 'close' price
             df_final = df_final.dropna(subset=['close'])
 
-            # Gets the most recent day for each ticker
+            # Gets the most recent entry for each ticker
             df_final = df_final.loc[df_final.groupby('ticker')['date'].idxmax()]
 
-            # Removes the '.SA' suffix from tickers
+            # Removes the '.SA' suffix from the ticker names
             df_final['ticker'] = df_final['ticker'].str.replace('.SA', '', regex=False)
 
             # Formats the date
@@ -209,7 +209,7 @@ class Scraper:
             return df_final
 
         except Exception as e:
-            log.error(f"  > An error ocurred during the batch download from yfinance: {e}")
+            log.error(f"  > An error occurred during the batch download from yfinance: {e}")
             return pd.DataFrame()
 
     # --- PRIVATE METHODS ---
@@ -220,7 +220,7 @@ class Scraper:
         log.debug(f" > Accessing URL: {url}")
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()  # Raises error for bad status (404, 500, etc.)
+            response.raise_for_status()  # Raises an error for bad status codes (404, 500, etc.)
             return response
         except requests.RequestException as e:
             log.error(f"Error during request of URL: {e}")
@@ -259,10 +259,10 @@ class Scraper:
         # Creates the final data structure
         dados_fii = {}
         # Iterating through all tables
-        for table in soup.find_all('table'):
+        for table in soup.find_all('table', class_='list-resultado'):
 
             # Getting all table rows
-            for line in table.find_all('tr'):
+            for row in table.find_all('tr'):
                 # Getting the label elements
                 labels = line.select('td[class*="label"]')
                 # Getting the data elements

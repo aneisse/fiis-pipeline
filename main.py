@@ -7,69 +7,69 @@ from fiiscraper import Scraper
 import time
 from datetime import date, timedelta
 
-# --- CONFIGURAÇÃO ---
+# --- CONFIGURATION ---
 BUCKET_S3 = 'fii-data-bucket'
 
 def run_pipeline():
     """
-        Função principal que executa o pipeline de obtenção de dados.
+        Main function that runs the data acquisition pipeline.
     """
-    # Configuração do logging
+    # Logging setup
     setup_logging()
     
-    logging.info("--- INICIANDO PIPELINE DE DADOS DE FIIs ---")
+    logging.info("--- STARTING FII DATA PIPELINE ---")
     
-    # Criando o Scraper (Métodos de raspagem dos dados)
+    # Creating the Scraper (Data scraping methods)
     scraper = fscp.Scraper()
 
-    # Listagem de FIIs disponíveis no site Fundamentus
+    # Listing of FIIs available on the Fundamentus website
     lista_fiis = scraper.listar_todos_fiis()
     if not lista_fiis:
-        logging.critical("Não foi possível obter a lista de FIIs. Encerrando pipeline.")
+        logging.critical("Could not get the list of FIIs. Shutting down pipeline.")
         return
 
-    # --- BUSCANDO DADOS ---
-    logging.info("--- INICIANDO BUSCA DOS DADOS DE FIIS IDENTIFICADOS ---")
-    # Busca os dados de indicadores do dia
+    # --- FETCHING DATA ---
+    logging.info("--- STARTING TO FETCH DATA FOR IDENTIFIED FIIs ---")
+    # Fetches the day's indicator data
     indicadores_fiis = []
     for fii in lista_fiis:
 
-        # Busca indicadores do FII
+        # Fetches FII indicators
         indicadores_fii = scraper.buscar_indicadores_dia(fii.ticker)
         
-        # Adiciona FII à lista
+        # Adds FII to the list
         indicadores_fiis.append(indicadores_fii)
 
-    logging.info("--- INICIANDO BUSCA DOS PREÇOS DOS FIIS ---")
-    # Busca o histórico de preços para cada FII na lista
+    logging.info("--- STARTING TO FETCH FII PRICES ---")
+    # Fetches the price history for each FII in the list
     preco_fiis = scraper.buscar_precos_em_lote([fii.ticker for fii in lista_fiis])
 
-    # --- MARCANDO FIIS QUE TEM NO YFINANCE ---
-    # Muda para 'tem_dados_yfinance = True' caso o FII tenha sido encontrado no yfinance
+    # --- MARKING FIIs THAT ARE IN YFINANCE ---
+    # Changes to 'tem_dados_yfinance = True' if the FII was found in yfinance
     for fii in lista_fiis:
         if fii.ticker in preco_fiis['ticker'].tolist():
             fii.tem_dados_yfinance = True
 
-    # --- SUBINDO DADOS PARA O S3
-    logging.info("--- INICIANDO ENVIO DE DADOS PARA O S3 ---")
-    # Estatísticas do dia
+    # --- UPLOADING DATA TO S3 ---
+    logging.info("--- STARTING DATA UPLOAD TO S3 ---")
+    # Daily statistics
     if not indicadores_fiis:
-        logging.info("Enviando estatísticas do dia para o S3...")
+        logging.info("Sending daily statistics to S3...")
         # ...
     else:
-        logging.warning("Nenhum dado de estatísticas do dia foi coletado.")
+        logging.warning("No daily statistics data was collected.")
 
-    # Dados de preço
+    # Price data
     if not preco_fiis.empty:
-        logging.info("Enviando preços diários para o S3...")
+        logging.info("Sending daily prices to S3...")
         # ...
     else:
-        logging.warning("Nenhum dado de preço foi coletado.")
+        logging.warning("No price data was collected.")
 
-# Garante que o pipeline só seja executado quando o script for chamado diretamente
+# Ensures the pipeline only runs when the script is called directly
 if __name__ == "__main__":
     start_time = time.perf_counter()
     run_pipeline()
     end_time = time.perf_counter()
     duration = end_time - start_time
-    logging.info(f"\n--- Pipeline de preços concluído em {duration:.2f} segundos ---")
+    logging.info(f"\n--- Price pipeline finished in {duration:.2f} seconds ---")
