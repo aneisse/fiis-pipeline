@@ -1,6 +1,6 @@
 import fiiscraper as fscp
 import pandas as pd
-from fiiscraper.aws_uploader import upload_df_para_s3
+from fiiscraper.aws_uploader import upload_df_to_s3
 import logging
 from fiiscraper.logger_config import setup_logging
 from fiiscraper import Scraper
@@ -52,17 +52,49 @@ def run_pipeline():
 
     # --- UPLOADING DATA TO S3 ---
     logging.info("--- STARTING DATA UPLOAD TO S3 ---")
-    # Daily statistics
-    if not indicadores_fiis:
-        logging.info("Sending daily statistics to S3...")
-        # ...
+    
+    # Pega a data de hoje para usar nos nomes dos arquivos
+    today = date.today()
+    yesterday = date.today() - timedelta(days=1)
+
+    # Indicadores diários
+    if indicadores_fiis: 
+        logging.info("Converting and sending daily statistics to S3...")
+        try:
+            # Converte a lista de objetos para um DataFrame do Pandas
+            df_indicadores = pd.DataFrame([vars(fii) for fii in indicadores_fiis])
+            # Força tipo da coluna para STRING, pois o campo tem algum valor que precisa ser tratado depo
+            df_indicadores = df_indicadores.astype(str)
+
+            # Define um nome de arquivo particionado (boa prática para data lakes)
+            nome_arquivo_s3 = f'raw/daily_indicators/ingest_date={today.isoformat()}/data_parquet'
+            
+            # Chama a função de upload do seu módulo
+            upload_df_to_s3(
+                df=df_indicadores,
+                bucket_name=BUCKET_S3,  # Variável definida no topo do seu main.py
+                s3_filename=nome_arquivo_s3
+            )
+        except Exception as e:
+            logging.error(f"Failed to process and upload indicators: {e}")
     else:
         logging.warning("No daily statistics data was collected.")
 
-    # Price data
+    # Dados de Preço
     if not preco_fiis.empty:
         logging.info("Sending daily prices to S3...")
-        # ...
+        try:
+            # Define um nome de arquivo particionado
+            nome_arquivo_s3 = f'raw/price_history_snapshots/price_date={yesterday.isoformat()}/data_parquet'
+
+            # Chama a função de upload
+            upload_df_to_s3(
+                df=preco_fiis,
+                bucket_name=BUCKET_S3,
+                s3_filename=nome_arquivo_s3
+            )
+        except Exception as e:
+            logging.error(f"Failed to upload prices: {e}")
     else:
         logging.warning("No price data was collected.")
 

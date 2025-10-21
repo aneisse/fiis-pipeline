@@ -87,7 +87,7 @@ class Scraper:
         log.info(f"Fetching indicators for {ticker}...")
         # Building the URL according to the Fundamentus website structure
         url_fii = f"{self.url_base_fii}?papel={ticker}"
-
+    
         # Makes the HTTP request to get the page content
         response = self._buscar_html(url_fii)
         if not response:
@@ -259,14 +259,14 @@ class Scraper:
         # Creates the final data structure
         dados_fii = {}
         # Iterating through all tables
-        for table in soup.find_all('table', class_='list-resultado'):
+        for table in soup.find_all('table'):
 
             # Getting all table rows
             for row in table.find_all('tr'):
                 # Getting the label elements
-                labels = line.select('td[class*="label"]')
+                labels = row.select('td[class*="label"]')
                 # Getting the data elements
-                data = line.select('td[class*="data"]')
+                data = row.select('td[class*="data"]')
 
                 for label_cell, data_cell in zip(labels, data):
                     # Ensures both were found on the same line

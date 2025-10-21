@@ -45,3 +45,26 @@ fiis-data-lake/
 # --- Ficheiros de Log ---
 # Ignora os ficheiros de log gerados durante a execução do programa.
 *.log
+
+# --- Terraform ---
+# Ignora o diretório de plugins (baixado pelo 'terraform init')
+.terraform/
+
+# Ignora os arquivos de estado, que contêm informações sensíveis
+*.tfstate
+*.tfstate.backup
+
+# Ignora os planos de execução binários (criados com 'plan -out=...')
+*.tfplan
+
+# Ignora o arquivo que trava as versões dos providers (opcional, mas bom)
+.terraform.lock.hcl
+
+# --- Pacotes e Builds do AWS Lambda ---
+# Ignora o .zip final que é enviado para o Lambda
+lambda_package.zip
+
+# Ignora qualquer diretório temporário de 'build' usado pelo script
+build/
+dist/
+*.egg-info/
