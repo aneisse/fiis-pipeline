@@ -71,8 +71,8 @@ def run_pipeline():
             # Chama a função de upload do seu módulo
             upload_df_to_s3(
                 df=df_indicadores,
-                nome_bucket=BUCKET_S3,  # Variável definida no topo do seu main.py
-                nome_arquivo_s3=nome_arquivo_s3
+                bucket_name=BUCKET_S3,  # Variável definida no topo do seu main.py
+                s3_filename=nome_arquivo_s3
             )
         except Exception as e:
             logging.error(f"Failed to process and upload indicators: {e}")
@@ -89,8 +89,8 @@ def run_pipeline():
             # Chama a função de upload
             upload_df_to_s3(
                 df=preco_fiis,
-                nome_bucket=BUCKET_S3,
-                nome_arquivo_s3=nome_arquivo_s3
+                bucket_name=BUCKET_S3,
+                s3_filename=nome_arquivo_s3
             )
         except Exception as e:
             logging.error(f"Failed to upload prices: {e}")
