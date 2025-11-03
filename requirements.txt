@@ -5,4 +5,4 @@ pandas
 python-dateutil
 lxml
 boto3
-pyarrow
+# pyarrow

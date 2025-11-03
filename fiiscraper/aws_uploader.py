@@ -37,19 +37,19 @@ def upload_df_to_s3(df: pd.DataFrame, bucket_name: str, s3_filename: str) -> boo
 
     try:
         # Creates an in-memory bytes buffer (a virtual "dispatch box")
-        buffer_parquet = io.BytesIO()
+        buffer_jsonl = io.StringIO()
 
         # Writes the DataFrame to the buffer in Parquet format
-        df.to_parquet(buffer_parquet, index=False)
+        df.to_json(buffer_jsonl, orient='records',  lines=True, force_ascii=False)
 
         # "Rewinds" the buffer to the beginning before reading it for the upload
-        buffer_parquet.seek(0)
+        buffer_jsonl.seek(0)
 
         # Uses put_object to send the buffer's content (the bytes)
         s3_client.put_object(
             Bucket=bucket_name,
             Key=s3_filename,
-            Body=buffer_parquet
+            Body=buffer_jsonl.getvalue().encode('utf-8')
         )
 
         logging.info("Upload successful!")

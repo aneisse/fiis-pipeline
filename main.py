@@ -5,10 +5,8 @@ import logging
 from fiiscraper.logger_config import setup_logging
 from fiiscraper import Scraper
 import time
+import os
 from datetime import date, timedelta
-
-# --- CONFIGURATION ---
-BUCKET_S3 = 'fii-data-bucket'
 
 def run_pipeline():
     """
@@ -16,6 +14,12 @@ def run_pipeline():
     """
     # Logging setup
     setup_logging()
+
+    # Pega a variável do seu terminal
+    bucket_name = os.environ.get("BUCKET_S3")
+    if not bucket_name:
+        logging.error("Variável de ambiente 'BUCKET_S3' não definida.")
+        raise ValueError("BUCKET_S3 não configurado.")
     
     logging.info("--- STARTING FII DATA PIPELINE ---")
     
@@ -72,7 +76,7 @@ def run_pipeline():
             # Chama a função de upload do seu módulo
             upload_df_to_s3(
                 df=df_indicadores,
-                bucket_name=BUCKET_S3,  # Variável definida no topo do seu main.py
+                bucket_name=bucket_name,  # Variável definida no topo do seu main.py
                 s3_filename=nome_arquivo_s3
             )
         except Exception as e:
@@ -90,7 +94,7 @@ def run_pipeline():
             # Chama a função de upload
             upload_df_to_s3(
                 df=preco_fiis,
-                bucket_name=BUCKET_S3,
+                bucket_name=bucket_name,
                 s3_filename=nome_arquivo_s3
             )
         except Exception as e:
