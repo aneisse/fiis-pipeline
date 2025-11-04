@@ -27,13 +27,15 @@ class Scraper:
 
         # Simulating a browser header.
         # Many sites block headerless requests
-        # Added more headers to better simulate a real browser and avoid 403 errors on cloud environments like Lambda.
         self.headers = {
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                 'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/58.0.3029.110 Safari/537.36'
-            )
+                'Chrome/91.0.4472.124 Safari/537.36'
+            ),
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            # O 'Referer' é crucial para navegar das listas para a página de detalhe
+            'Referer': 'https://www.fundamentus.com.br/fii_imoveis.php' 
         }
 
     # --- PUBLIC METHODS ---
