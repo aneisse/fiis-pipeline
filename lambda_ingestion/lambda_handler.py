@@ -16,7 +16,7 @@ def lambda_handler(event, context):
     Ponto de entrada principal para a execução do AWS Lambda.
     Este handler orquestra o scraping e o upload para o S3.
     """
-    logging.info("Iniciando a execução do Lambda de ingestão de FIIs...")
+    logging.info("-Iniciando a execução do Lambda de ingestão de FIIs...")
 
     try:
         # 1. Obter o nome do Bucket S3 a partir das Variáveis de Ambiente
@@ -27,8 +27,9 @@ def lambda_handler(event, context):
 
         logging.info(f"Conectando ao S3 Bucket: {bucket_name}")
 
-        logging.info("--- STARTING FII DATA PIPELINE ---")
-    
+        logging.info("--- STARTING FII DATA PIPELINE ---")    
+
+
         # Creating the Scraper (Data scraping methods)
         scraper = fscp.Scraper()
 
