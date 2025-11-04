@@ -23,9 +23,9 @@ def lambda_handler(event, context):
         bucket_name = os.environ.get('BUCKET_S3')
         if not bucket_name:
             logging.error("Environment variable 'BUCKET_S3' not set.")
-            raise ValueError("BUCKET_S3 não configurado.")
+            raise ValueError("BUCKET_S3 not configured.")
 
-        logging.info(f"Conectando ao S3 Bucket: {bucket_name}")
+        logging.info(f"Connecting to S3 Bucket: {bucket_name}")
 
         logging.info("--- STARTING FII DATA PIPELINE ---")    
 
@@ -80,7 +80,7 @@ def lambda_handler(event, context):
                 # Define a partitioned filename (good practice for data lakes)
                 nome_arquivo_s3 = f'raw/daily_indicators/ingest_date={today.isoformat()}/data_parquet'
                 
-                # Chama a função de upload do seu módulo
+                # Call the upload function from your module
                 upload_df_to_s3(
                     df=df_indicadores,
                     bucket_name=bucket_name,  # Variable defined at the top of the handler

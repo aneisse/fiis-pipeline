@@ -25,7 +25,7 @@ resource "aws_s3_bucket" "fii_data_lake" {
   }
 }
 
-# 3. Define a "Identidade" (IAM Role) que o Lambda usará
+# 3. Defines the "Identity" (IAM Role) that will run the Lambda function
 resource "aws_iam_role" "lambda_role" {
   name = "fii_scraper_lambda_role"
 
