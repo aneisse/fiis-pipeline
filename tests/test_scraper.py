@@ -94,3 +94,32 @@ def test_buscar_precos_em_lote_com_tickers_mistos():
     assert "MXRF11" in resultado['ticker'].tolist()
     assert "VISC11" in resultado['ticker'].tolist()
     assert "YYYY11" not in resultado['ticker'].tolist(), "Invalid tickers should not be in the result."
+
+# --- Tests for Data Cleaning Method ---
+
+# 1. Test case: Percentage with comma (e.g., "10,5%") -> 0.105
+# 2. Test case: Large number with dots and comma (e.g., "1.234.567,89") -> 1234567.89
+# 3. Test case: Plain integer string (e.g., "150") -> 150.0
+# 4. Test case: Plain text (e.g., "Híbrido") -> "Híbrido" (unchanged)
+# 5. Test case: Invalid/empty data (e.g., "--") -> None
+# 6. Test case: Number with only dots (e.g., "1.500") -> 1500.0
+@pytest.mark.parametrize(
+    "raw_input, expected_output",
+    [
+        ({"test": "10,5%"}, {"test": 0.105}),
+        ({"test": "1.234.567,89"}, {"test": 1234567.89}),
+        ({"test": "150"}, {"test": 150.0}),
+        ({"test": "Híbrido"}, {"test": "Híbrido"}),
+        ({"test": "--"}, {"test": None}),
+        ({"test": "1.500"}, {"test": 1500.0}),
+        ({"test": "R$ 10,50"}, {"test": None}), # Should fail conversion
+    ],
+)
+def test_limpar_e_converter_dados(raw_input, expected_output):
+    """
+    Tests the _limpar_e_converter_dados method with various data formats.
+    """
+    scraper = Scraper()
+    # Access the private method for testing (this is okay in tests)
+    cleaned_data = scraper._limpar_e_converter_dados(raw_input)
+    assert cleaned_data == expected_output
