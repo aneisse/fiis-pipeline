@@ -15,10 +15,10 @@ def run_pipeline():
     # Logging setup
     setup_logging()
 
-    # Pega a variável do seu terminal
+    # Get the environment variable from your terminal
     bucket_name = os.environ.get("BUCKET_S3")
     if not bucket_name:
-        logging.error("Variável de ambiente 'BUCKET_S3' não definida.")
+        logging.error("Environment variable 'BUCKET_S3' not set.")
         raise ValueError("BUCKET_S3 não configurado.")
     
     logging.info("--- STARTING FII DATA PIPELINE ---")
@@ -57,26 +57,26 @@ def run_pipeline():
     # --- UPLOADING DATA TO S3 ---
     logging.info("--- STARTING DATA UPLOAD TO S3 ---")
     
-    # Pega a data de hoje para usar nos nomes dos arquivos
+    # Get today's date to use in the filenames
     today = date.today()
     yesterday = date.today() - timedelta(days=1)
 
-    # Indicadores diários
+    # Daily indicators
     if indicadores_fiis: 
         logging.info("Converting and sending daily statistics to S3...")
         try:
-            # Converte a lista de objetos para um DataFrame do Pandas
+            # Convert the list of objects to a Pandas DataFrame
             df_indicadores = pd.DataFrame([vars(fii) for fii in indicadores_fiis])
-            # Força tipo da coluna para STRING, pois o campo tem algum valor que precisa ser tratado depo
+            # Force column type to STRING, as some fields may have values that need later treatment
             df_indicadores = df_indicadores.astype(str)
 
-            # Define um nome de arquivo particionado (boa prática para data lakes)
+            # Define a partitioned filename (good practice for data lakes)
             nome_arquivo_s3 = f'raw/daily_indicators/ingest_date={today.isoformat()}/data_parquet'
             
             # Chama a função de upload do seu módulo
             upload_df_to_s3(
                 df=df_indicadores,
-                bucket_name=bucket_name,  # Variável definida no topo do seu main.py
+                bucket_name=bucket_name,  # Variable defined at the top of main.py
                 s3_filename=nome_arquivo_s3
             )
         except Exception as e:
@@ -84,14 +84,14 @@ def run_pipeline():
     else:
         logging.warning("No daily statistics data was collected.")
 
-    # Dados de Preço
+    # Price Data
     if not preco_fiis.empty:
         logging.info("Sending daily prices to S3...")
         try:
-            # Define um nome de arquivo particionado
+            # Define a partitioned filename
             nome_arquivo_s3 = f'raw/price_history_snapshots/price_date={yesterday.isoformat()}/data_parquet'
 
-            # Chama a função de upload
+            # Call the upload function
             upload_df_to_s3(
                 df=preco_fiis,
                 bucket_name=bucket_name,

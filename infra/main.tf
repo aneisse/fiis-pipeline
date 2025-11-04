@@ -1,26 +1,26 @@
-# 1. Define o provedor (AWS) e a região
-# Informa ao Terraform que estamos construindo na AWS
+# 1. Define the provider (AWS) and the region
+# Informs Terraform that we are building on AWS
 provider "aws" {
   region = "sa-east-1"
   profile = "SystemAdministrator-883609937142"
 }
-# Lê os metadados do nosso .zip no S3
+# Reads the metadata of our .zip file from S3
 data "aws_s3_object" "lambda_zip" {
   bucket = aws_s3_bucket.fii_data_lake.bucket
   key    = "lambda_code/lambda_package.zip"
 
-  # Garante que ele só leia DEPOIS que a função Lambda for criada
-  # (ou, neste caso, que ele dependa do bucket)
+  # Ensures that it only reads AFTER the Lambda function is created
+  # (or, in this case, that it depends on the bucket)
   depends_on = [aws_s3_bucket.fii_data_lake]
 }
 
-# 2. Define o Bucket S3 (a "caixa" para nossos dados)
-# Tarefa principal da Semana 4
+# 2. Defines the S3 Bucket (the "box" for our data)
+# Main task for Week 4
 resource "aws_s3_bucket" "fii_data_lake" {
   bucket = "fii-data-bucket" 
   
   tags = {
-    Name        = "FII Data Lake - Camada Raw"
+    Name        = "FII Data Lake - Raw Layer"
     Projeto     = "fii-data-science"
   }
 }
@@ -29,8 +29,8 @@ resource "aws_s3_bucket" "fii_data_lake" {
 resource "aws_iam_role" "lambda_role" {
   name = "fii_scraper_lambda_role"
 
-  # Esta é a parte "confie em mim": diz que o serviço Lambda
-  # da AWS tem permissão para "assumir" esta identidade.
+  # This is the "trust policy": it states that the AWS Lambda service
+  # has permission to "assume" this identity.
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -47,10 +47,10 @@ resource "aws_iam_role" "lambda_role" {
   }
 }
 
-# 4. Define a Política de Permissões (o que a Role pode fazer)
+# 4. Defines the Permissions Policy (what the Role can do)
 data "aws_iam_policy_document" "lambda_policy_doc" {
   
-  # Permissão 1: Escrever logs (essencial para depurar o Lambda)
+  # Permission 1: Write logs (essential for debugging the Lambda)
   statement {
     actions = [
       "logs:CreateLogGroup",
@@ -60,44 +60,44 @@ data "aws_iam_policy_document" "lambda_policy_doc" {
     resources = ["arn:aws:logs:*:*:*"]
   }
 
-  # Permissão 2: Escrever (PutObject) no bucket S3 que criamos
+  # Permission 2: Write (PutObject) to the S3 bucket we created
   statement {
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.fii_data_lake.arn}/*"] # Aponta para o bucket acima
+    resources = ["${aws_s3_bucket.fii_data_lake.arn}/*"] # Points to the bucket above
   }
 }
 
-# 5. Anexa a Política (Permissões) à Role (Identidade)
+# 5. Attaches the Policy (Permissions) to the Role (Identity)
 resource "aws_iam_role_policy" "lambda_policy_attach" {
   name   = "fii_scraper_lambda_policy"
   role   = aws_iam_role.lambda_role.name
   policy = data.aws_iam_policy_document.lambda_policy_doc.json
 }
 
-# --- Bloco 6: A Função Lambda em si ---
+# --- Block 6: The Lambda Function itself ---
 resource "aws_lambda_function" "fii_scraper_lambda" {
   function_name = "fii_scraper_ingestion"
   package_type  = "Zip"
-  handler       = "lambda_handler.lambda_handler" # arquivo.função
-  runtime       = "python3.10" # Garanta que seu venv usa este ou similar
-  role          = aws_iam_role.lambda_role.arn    # <-- USA A ROLE QUE JÁ CRIAMOS
+  handler       = "lambda_handler.lambda_handler" # file.function
+  runtime       = "python3.10" # Ensure your venv uses this or a similar version
+  role          = aws_iam_role.lambda_role.arn    # <-- USES THE ROLE WE ALREADY CREATED
 
-  # Aponta para o .zip que a Fase 2 irá criar
-  # 1. Dizemos de qual S3 o Lambda deve ler o código.
-  #    Usamos a referência ao bucket que o Terraform já criou.
+  # Points to the .zip that Phase 2 will create
+  # 1. We tell Lambda from which S3 it should read the code.
+  #    We use the reference to the bucket that Terraform has already created.
   s3_bucket = aws_s3_bucket.fii_data_lake.bucket 
 
   # 2. Dizemos qual o "caminho" (key) exato do arquivo dentro do bucket.
   #    Este DEVE ser o mesmo caminho que você usou no Passo 1 (o comando 'aws s3 cp').
   s3_key    = "lambda_code/lambda_package.zip"
 
-  # source_code_hash força o Terraform a detectar mudanças no .zip
-  source_code_hash = data.aws_s3_object.lambda_zip.etag
+  # source_code_hash forces Terraform to detect changes in the .zip file
+  source_code_hash = data.aws_s3_object.lambda_zip.etag # Using etag to track file changes
 
-  timeout = 300 # 5 minutos (o scraping pode demorar)
-  memory_size = 512 # Aumenta a memória (Pandas consome memória)
+  timeout = 300 # 5 minutes (scraping can be slow)
+  memory_size = 512 # Increases memory (Pandas is memory-intensive)
 
-  # --- CRUCIAL: Passa o nome do S3 para o Python ---
+  # --- CRUCIAL: Pass the S3 bucket name to the Python code ---
   environment {
     variables = {
       BUCKET_S3 = aws_s3_bucket.fii_data_lake.bucket
@@ -109,23 +109,23 @@ resource "aws_lambda_function" "fii_scraper_lambda" {
   }
 }
 
-# --- Bloco 7: O Agendador (EventBridge) ---
-# Dispara todo dia às 20h UTC (aprox. 17h no Brasil, ajuste o cron se desejar)
+# --- Block 7: The Scheduler (EventBridge) ---
+# Triggers every day at 8 PM UTC (approx. 5 PM in Brazil, adjust the cron if desired)
 resource "aws_cloudwatch_event_rule" "daily_schedule" {
   name                = "fii_scraper_daily_trigger"
   schedule_expression = "cron(0 20 * * ? *)" 
-  description         = "Dispara o scraper de FIIs diariamente"
+  description         = "Triggers the FII scraper daily"
 }
 
-# --- Bloco 8: Liga o Agendador ao Lambda ---
+# --- Block 8: Connects the Scheduler to the Lambda ---
 resource "aws_cloudwatch_event_target" "lambda_target" {
   rule      = aws_cloudwatch_event_rule.daily_schedule.name
   target_id = "fii_scraper_lambda"
   arn       = aws_lambda_function.fii_scraper_lambda.arn
 }
 
-# --- Bloco 9: Permissão final ---
-# Autoriza o EventBridge (Agendador) a invocar o Lambda
+# --- Block 9: Final Permission ---
+# Authorizes EventBridge (the Scheduler) to invoke the Lambda function
 resource "aws_lambda_permission" "allow_eventbridge" {
   statement_id  = "AllowExecutionFromEventBridge"
   action        = "lambda:InvokeFunction"
@@ -134,9 +134,9 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.daily_schedule.arn
 }
 
-# --- Saídas ---
-# Faz o Terraform imprimir o nome do bucket no final
+# --- Outputs ---
+# Makes Terraform print the bucket name at the end of the execution
 output "s3_bucket_name_output" {
-  description = "O nome do bucket S3 criado para o Data Lake."
+  description = "The name of the S3 bucket created for the Data Lake."
   value       = aws_s3_bucket.fii_data_lake.bucket
 }

@@ -8,21 +8,21 @@ import time
 import os
 from datetime import date, timedelta
 
-# Configura o logger
+# Configure the logger
 setup_logging()
 
 def lambda_handler(event, context):
     """
-    Ponto de entrada principal para a execução do AWS Lambda.
-    Este handler orquestra o scraping e o upload para o S3.
+    Main entry point for the AWS Lambda execution.
+    This handler orchestrates the scraping and upload to S3.
     """
-    logging.info("-Iniciando a execução do Lambda de ingestão de FIIs...")
+    logging.info("Starting the FIIs ingestion Lambda execution...")
 
     try:
-        # 1. Obter o nome do Bucket S3 a partir das Variáveis de Ambiente
+        # 1. Get the S3 Bucket name from Environment Variables
         bucket_name = os.environ.get('BUCKET_S3')
         if not bucket_name:
-            logging.error("Variável de ambiente 'BUCKET_S3' não definida.")
+            logging.error("Environment variable 'BUCKET_S3' not set.")
             raise ValueError("BUCKET_S3 não configurado.")
 
         logging.info(f"Conectando ao S3 Bucket: {bucket_name}")
@@ -64,26 +64,26 @@ def lambda_handler(event, context):
         # --- UPLOADING DATA TO S3 ---
         logging.info("--- STARTING DATA UPLOAD TO S3 ---")
         
-        # Pega a data de hoje para usar nos nomes dos arquivos
+        # Get today's date to use in the filenames
         today = date.today()
         yesterday = date.today() - timedelta(days=1)
 
-        # Indicadores diários
+        # Daily indicators
         if indicadores_fiis: 
             logging.info("Converting and sending daily statistics to S3...")
             try:
-                # Converte a lista de objetos para um DataFrame do Pandas
+                # Convert the list of objects to a Pandas DataFrame
                 df_indicadores = pd.DataFrame([vars(fii) for fii in indicadores_fiis])
-                # Força tipo da coluna para STRING, pois o campo tem algum valor que precisa ser tratado depo
+                # Force column type to STRING, as some fields may have values that need later treatment
                 df_indicadores = df_indicadores.astype(str)
 
-                # Define um nome de arquivo particionado (boa prática para data lakes)
+                # Define a partitioned filename (good practice for data lakes)
                 nome_arquivo_s3 = f'raw/daily_indicators/ingest_date={today.isoformat()}/data_parquet'
                 
                 # Chama a função de upload do seu módulo
                 upload_df_to_s3(
                     df=df_indicadores,
-                    bucket_name=bucket_name,  # Variável definida no topo do seu main.py
+                    bucket_name=bucket_name,  # Variable defined at the top of the handler
                     s3_filename=nome_arquivo_s3
                 )
             except Exception as e:
@@ -91,14 +91,14 @@ def lambda_handler(event, context):
         else:
             logging.warning("No daily statistics data was collected.")
 
-        # Dados de Preço
+        # Price Data
         if not preco_fiis.empty:
             logging.info("Sending daily prices to S3...")
             try:
-                # Define um nome de arquivo particionado
+                # Define a partitioned filename
                 nome_arquivo_s3 = f'raw/price_history_snapshots/price_date={yesterday.isoformat()}/data_parquet'
 
-                # Chama a função de upload
+                # Call the upload function
                 upload_df_to_s3(
                     df=preco_fiis,
                     bucket_name=bucket_name,
@@ -110,6 +110,6 @@ def lambda_handler(event, context):
             logging.warning("No price data was collected.")
 
     except Exception as e:
-        logging.error(f"Erro fatal durante a execução: {str(e)}")
-        # Levanta a exceção para que o Lambda registre a execução como "Falha"
+        logging.error(f"Fatal error during execution: {str(e)}")
+        # Raise the exception so that Lambda registers the execution as "Failed"
         raise e

@@ -2,7 +2,6 @@ import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 import logging
 import pandas as pd
-import io  # Necessário para o buffer em memória
 import io  # Required for the in-memory buffer
 
 # Logging configuration to see informational and error messages
@@ -30,26 +29,27 @@ def upload_df_to_s3(df: pd.DataFrame, bucket_name: str, s3_filename: str) -> boo
     # in your environment (configured via 'aws configure' or an IAM Role on Lambda).
     s3_client = boto3.client('s3')
 
-    logging.info(
-        f"Starting in-memory DataFrame upload to "
+    log_message = (
+        f"Starting in-memory DataFrame to Parquet upload to "
         f"'s3://{bucket_name}/{s3_filename}'..."
     )
+    logging.info(log_message)
 
     try:
-        # Creates an in-memory bytes buffer (a virtual "dispatch box")
-        buffer_jsonl = io.StringIO()
+        # Creates an in-memory bytes buffer
+        buffer_parquet = io.BytesIO()
 
         # Writes the DataFrame to the buffer in Parquet format
-        df.to_json(buffer_jsonl, orient='records',  lines=True, force_ascii=False)
+        df.to_parquet(buffer_parquet, index=False)
 
-        # "Rewinds" the buffer to the beginning before reading it for the upload
-        buffer_jsonl.seek(0)
+        # "Rewinds" the buffer to the beginning before reading its content for the upload
+        buffer_parquet.seek(0)
 
         # Uses put_object to send the buffer's content (the bytes)
         s3_client.put_object(
             Bucket=bucket_name,
             Key=s3_filename,
-            Body=buffer_jsonl.getvalue().encode('utf-8')
+            Body=buffer_parquet
         )
 
         logging.info("Upload successful!")

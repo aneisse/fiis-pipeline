@@ -4,11 +4,11 @@ from fiiscraper import Scraper
 from fiiscraper.models.fii import FII
 
 
-# --- Testes para Métodos de Scraping de Indicadores ---
+# --- Tests for Indicator Scraping Methods ---
 
 @pytest.mark.vcr
 def test_listar_todos_fiis_retorna_lista_de_objetos_fii():
-    """Testa a função principal de listagem de FIIs."""
+    """Tests the main FII listing function."""
     scraper = Scraper()
     resultado = scraper.listar_todos_fiis()
     assert isinstance(resultado, list)
@@ -18,7 +18,7 @@ def test_listar_todos_fiis_retorna_lista_de_objetos_fii():
 
 @pytest.mark.vcr
 def test_buscar_indicadores_dia_com_sucesso():
-    """Testa se o scraper consegue buscar e parsear os indicadores de um FII específico."""
+    """Tests if the scraper can fetch and parse the indicators for a specific FII."""
     scraper = Scraper()
     ticker_teste = "MXRF11"
     fii_resultante = scraper.buscar_indicadores_dia(ticker_teste)
@@ -30,33 +30,33 @@ def test_buscar_indicadores_dia_com_sucesso():
 
 @pytest.mark.vcr
 def test_buscar_indicadores_dia_com_ticker_invalido():
-    """Testa se o scraper lida corretamente com um ticker que não existe no Fundamentus."""
+    """Tests if the scraper correctly handles a ticker that does not exist on Fundamentus."""
     scraper = Scraper()
     ticker_invalido = "XXXX11"
     resultado = scraper.buscar_indicadores_dia(ticker_invalido)
-    assert resultado is None, "Para um ticker inválido, buscar_indicadores_dia deveria retornar None."
+    assert resultado is None, "For an invalid ticker, buscar_indicadores_dia should return None."
 
 
-# --- Testes para o Novo Método de Busca de Preços em Lote ---
+# --- Tests for the New Batch Price Fetching Method ---
 
 @pytest.mark.vcr
 def test_buscar_precos_em_lote_com_sucesso():
-    """Testa o caminho feliz do download em lote com múltiplos tickers válidos."""
+    """Tests the happy path of the batch download with multiple valid tickers."""
     scraper = Scraper()
     tickers_validos = ["MXRF11", "HGLG11"]
     
     resultado = scraper.buscar_precos_em_lote(tickers_validos)
 
-    assert isinstance(resultado, pd.DataFrame), "O método deve sempre retornar um DataFrame."
-    assert not resultado.empty, "O DataFrame não deveria estar vazio para tickers válidos."
-    assert len(resultado) == len(tickers_validos), "Deveria haver uma linha por ticker válido."
-    assert all(item in resultado['ticker'].tolist() for item in tickers_validos), "Nem todos os tickers solicitados foram retornados."
-    assert 'close' in resultado.columns, "A coluna 'close' é esperada no resultado."
+    assert isinstance(resultado, pd.DataFrame), "The method should always return a DataFrame."
+    assert not resultado.empty, "The DataFrame should not be empty for valid tickers."
+    assert len(resultado) == len(tickers_validos), "There should be one row per valid ticker."
+    assert all(item in resultado['ticker'].tolist() for item in tickers_validos), "Not all requested tickers were returned."
+    assert 'close' in resultado.columns, "The 'close' column is expected in the result."
 
 
 @pytest.mark.vcr
 def test_buscar_precos_em_lote_com_ticker_unico_valido():
-    """Testa o edge case de fazer o download em lote com apenas um ticker."""
+    """Tests the edge case of batch downloading with only a single ticker."""
     scraper = Scraper()
     ticker_valido = ["KNRI11"]
     
@@ -70,27 +70,27 @@ def test_buscar_precos_em_lote_com_ticker_unico_valido():
 
 @pytest.mark.vcr
 def test_buscar_precos_em_lote_com_ticker_invalido():
-    """Testa se o método retorna um DataFrame vazio para um ticker que não existe."""
+    """Tests if the method returns an empty DataFrame for a ticker that does not exist."""
     scraper = Scraper()
     ticker_invalido = ["XXXX11"]
 
     resultado = scraper.buscar_precos_em_lote(ticker_invalido)
     
-    assert isinstance(resultado, pd.DataFrame), "O método deve sempre retornar um DataFrame, mesmo para erros."
-    assert resultado.empty, "O DataFrame deveria estar vazio para um ticker inválido."
+    assert isinstance(resultado, pd.DataFrame), "The method should always return a DataFrame, even for errors."
+    assert resultado.empty, "The DataFrame should be empty for an invalid ticker."
 
 
 @pytest.mark.vcr
 def test_buscar_precos_em_lote_com_tickers_mistos():
-    """Testa se o método lida corretamente com uma lista de tickers válidos e inválidos."""
+    """Tests if the method correctly handles a list of valid and invalid tickers."""
     scraper = Scraper()
-    tickers_mistos = ["MXRF11", "YYYY11", "VISC11"] # YYYY11 é inválido
+    tickers_mistos = ["MXRF11", "YYYY11", "VISC11"] # YYYY11 is invalid
 
     resultado = scraper.buscar_precos_em_lote(tickers_mistos)
 
     assert isinstance(resultado, pd.DataFrame)
     assert not resultado.empty
-    assert len(resultado) == 2, "Deveria retornar dados apenas para os 2 tickers válidos."
+    assert len(resultado) == 2, "It should return data only for the 2 valid tickers."
     assert "MXRF11" in resultado['ticker'].tolist()
     assert "VISC11" in resultado['ticker'].tolist()
-    assert "YYYY11" not in resultado['ticker'].tolist(), "Tickers inválidos não deveriam estar no resultado."
+    assert "YYYY11" not in resultado['ticker'].tolist(), "Invalid tickers should not be in the result."

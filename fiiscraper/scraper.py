@@ -34,7 +34,7 @@ class Scraper:
                 'Chrome/91.0.4472.124 Safari/537.36'
             ),
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-            # O 'Referer' é crucial para navegar das listas para a página de detalhe
+            # The 'Referer' is crucial for navigating from the list to the detail page
             'Referer': 'https://www.fundamentus.com.br/fii_imoveis.php' 
         }
 
@@ -278,13 +278,13 @@ class Scraper:
                         # Cleans the text, removing spaces and the initial '?'
                         help_span = label_cell.find('span', class_='help')
                         if help_span:
-                            help_span.decompose()  # Removes the entire <span> element
+                            help_span.decompose()  # Removes the entire <span> help element
 
                         chave = label_cell.get_text(strip=True)
                         valor = data_cell.get_text(strip=True)
 
                         # Checks if the key is already in the dictionary
-                        if chave in dados_fii:
+                        if chave in dados_fii: # Handles duplicate keys for 3-month vs 12-month data
                             chave = f"{chave}_2"
 
                         # Adds to our results dictionary
