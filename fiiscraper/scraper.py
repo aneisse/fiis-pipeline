@@ -33,9 +33,12 @@ class Scraper:
                 'AppleWebKit/537.36 (KHTML, like Gecko) '
                 'Chrome/91.0.4472.124 Safari/537.36'
             ),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-            # The 'Referer' is crucial for navigating from the list to the detail page
-            'Referer': 'https://www.fundamentus.com.br/fii_imoveis.php' 
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            # O 'Referer' é MUITO IMPORTANTE. 
+            'Referer': 'https://www.fundamentus.com.br/fii_imoveis.php'
         }
 
     # --- PUBLIC METHODS ---
