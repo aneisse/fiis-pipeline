@@ -2,7 +2,6 @@
 # Defines the AWS provider and region.
 provider "aws" {
   region = "sa-east-1"
-  profile = "SystemAdministrator-883609937142"
 }
 
 # Reads the metadata of the Lambda deployment package from S3.
